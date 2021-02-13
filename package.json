@@ -2,7 +2,7 @@
   "name": "trader",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "gbp.js",
   "scripts": {
     "start": "node gbp.js"
   },
