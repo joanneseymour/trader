@@ -1,17 +1,27 @@
 require('dotenv').config();
+
+const express = require('express')
+const path = require('path')
+const PORT = process.env.PORT || 5000
+
+
+express()
+  .use(express.static(path.join(__dirname, 'public')))
+  .set('views', path.join(__dirname, 'views'))
+  .set('view engine', 'ejs')
+  .get('/', (req, res) => res.render('pages/index'))
+  .listen(PORT, () => console.log(`Listening on ${ PORT }`))
+
+
 const ccxt = require('ccxt');
 const axios = require("axios");
 const fs = require('fs');
-
-let content = '';
-
-
 
 const tick = async (config, binanceClient) => {
   const { asset, base, spread, allocation } = config;
   const market = `${asset}/${base}`;
 
-  // Cancel open orders left from previou tick, if any
+  // Cancel open orders left from previous tick, if any
   const orders = await binanceClient.fetchOpenOrders(market);
   orders.forEach(async order => {
     await binanceClient.cancelOrder(order.id, order.symbol);
@@ -19,17 +29,16 @@ const tick = async (config, binanceClient) => {
 
   // Fetch current market prices
   const results = await Promise.all([
-    axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd'),
-    axios.get('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=usd')
+    axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp'),
   ]);
-  const marketPrice = results[0].data.bitcoin.usd / results[1].data.tether.usd;
-  console.log("Marketprice is " + marketPrice);
+  const marketPrice = results[0].data.bitcoin.gbp;
+
   // Calculate new orders parameters
   const sellPrice = marketPrice * (1 + spread);
   const buyPrice = marketPrice * (1 - spread);
   const balances = await binanceClient.fetchBalance();
   const assetBalance = balances.free[asset]; // e.g. 0.01 BTC
-  const baseBalance = balances.free[base]; // e.g. 20 USDT
+  const baseBalance = balances.free[base]; // e.g. 20 GBP
   const sellVolume = assetBalance * allocation;
   const buyVolume = (baseBalance * allocation) / marketPrice;
 
@@ -43,31 +52,18 @@ const tick = async (config, binanceClient) => {
     Created limit buy order for ${buyVolume}@${buyPrice}  
   `);
 
-  content = `${assetBalance} BTC\t${baseBalance} USDT\n`;
+  content = `${assetBalance} BTC\t${baseBalance} GBP\n`;
 
-  // fs.writeFile('balance.txt', content, { flag: 'a+' }, err => {
-  //   console.log("\x1b[31m","Could not write to file","\x1b[0m");
-  // })
-
-
-//   fs.appendFile('my_files/balance.txt', content, {flag: "w+"}, err => { 
-//   if (err) {
-//     console.log("\x1b[31m", err);
-//     return
-//   }
-//   //file written successfully
-//   console.log("\x1b[32m", "Written to file");
-// })
-  console.log(`Current balance: \n${assetBalance} BTC\t${baseBalance} USDT`);
+  console.log(`Current balance: \n${assetBalance} BTC\t${baseBalance} GBP`);
 };
 
 const run = () => {
   const config = { 
     asset: "BTC",
-    base: "USDT",
-    allocation: 0.5,     // Percentage of our available funds that we trade
-    spread: 0.05,         // Percentage above and below market prices for sell and buy orders 
-    tickInterval: 2000  // Duration between each tick, in milliseconds
+    base: "GBP",
+    allocation: 0.8,     // Percentage of our available funds that we trade
+    spread: 0.02,         // Percentage above and below market prices for sell and buy orders 
+    tickInterval: 20000  // Duration between each tick, in milliseconds
   };
   const binanceClient = new ccxt.binance({
     apiKey: process.env.API_KEY,
@@ -75,10 +71,6 @@ const run = () => {
   });
   tick(config, binanceClient);
   setInterval(tick, config.tickInterval, config, binanceClient);
-  
 };
-
-
-
 
 run();
