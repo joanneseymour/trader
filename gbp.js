@@ -16,6 +16,8 @@ express()
 const ccxt = require('ccxt');
 const axios = require("axios");
 const fs = require('fs');
+let marketPrice;
+let results;
 
 const tick = async (config, binanceClient) => {
   const { asset, base, spread, allocation } = config;
@@ -28,10 +30,12 @@ const tick = async (config, binanceClient) => {
   });
 
   // Fetch current market prices
-  const results = await Promise.all([
-    axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp'),
+ results = await Promise.all([
+    axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp')
   ]);
-  const marketPrice = results[0].data.bitcoin.gbp;
+
+  marketPrice = results[0].data.bitcoin.gbp;
+  console.log("marketPrice:" +  marketPrice);
 
   // Calculate new orders parameters
   const sellPrice = marketPrice * (1 + spread);
@@ -61,7 +65,7 @@ const run = () => {
   const config = { 
     asset: "BTC",
     base: "GBP",
-    allocation: 0.8,     // Percentage of our available funds that we trade
+    allocation: 0.5,     // Percentage of our available funds that we trade
     spread: 0.02,         // Percentage above and below market prices for sell and buy orders 
     tickInterval: 20000  // Duration between each tick, in milliseconds
   };
