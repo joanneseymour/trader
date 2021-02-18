@@ -1,9 +1,11 @@
 require('dotenv').config();
-
-const express = require('express')
-const path = require('path')
-const PORT = process.env.PORT || 5000
-
+const express = require('express');
+const path = require('path');
+const PORT = process.env.PORT || 5000;
+const ccxt = require('ccxt');
+const axios = require("axios");
+let marketPrice;
+let results;
 
 express()
   .use(express.static(path.join(__dirname, 'public')))
@@ -11,13 +13,6 @@ express()
   .set('view engine', 'ejs')
   .get('/', (req, res) => res.render('pages/index'))
   .listen(PORT, () => console.log(`Listening on ${ PORT }`))
-
-
-const ccxt = require('ccxt');
-const axios = require("axios");
-const fs = require('fs');
-let marketPrice;
-let results;
 
 const tick = async (config, binanceClient) => {
   const { asset, base, spread, allocation } = config;
@@ -30,16 +25,15 @@ const tick = async (config, binanceClient) => {
   });
 
   // Fetch current market prices
- results = await Promise.all([
-    axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp')
-  ]);
+ results = await  axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp');
 
-  marketPrice = results[0].data.bitcoin.gbp;
+  marketPrice = results.data.bitcoin.gbp;
+
   console.log("marketPrice:" +  marketPrice);
 
   // Calculate new orders parameters
-  const sellPrice = marketPrice * (1 + spread);
-  const buyPrice = marketPrice * (1 - spread);
+  const sellPrice = marketPrice * (1.05);
+  const buyPrice = marketPrice * (0.98);
   const balances = await binanceClient.fetchBalance();
   const assetBalance = balances.free[asset]; // e.g. 0.01 BTC
   const baseBalance = balances.free[base]; // e.g. 20 GBP
@@ -66,7 +60,7 @@ const run = () => {
     asset: "BTC",
     base: "GBP",
     allocation: 0.5,     // Percentage of our available funds that we trade
-    spread: 0.02,         // Percentage above and below market prices for sell and buy orders 
+    // spread: 0.02,         // Percentage above and below market prices for sell and buy orders 
     tickInterval: 20000  // Duration between each tick, in milliseconds
   };
   const binanceClient = new ccxt.binance({
